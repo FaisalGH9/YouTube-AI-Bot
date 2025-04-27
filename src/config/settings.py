@@ -1,33 +1,40 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file if it exists
+# Load environment variables
 load_dotenv()
 
 # API Keys
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY", "")
 
-# File paths
-FFMPEG_PATH = os.getenv('FFMPEG_PATH', 'ffmpeg')  # Default to system ffmpeg if not specified
+# OpenAI Model Settings
+DEFAULT_QA_MODEL = os.getenv("DEFAULT_QA_MODEL", "gpt-3.5-turbo-instruct")
+DEFAULT_SUMMARY_MODEL = os.getenv("DEFAULT_SUMMARY_MODEL", "gpt-3.5-turbo-instruct")
+TRANSCRIPTION_MODEL = os.getenv("TRANSCRIPTION_MODEL", "whisper-1")
+EMBEDDINGS_MODEL = os.getenv("EMBEDDINGS_MODEL", "text-embedding-ada-002")
 
-# Cache and database settings
-CACHE_DIR = os.getenv('CACHE_DIR', './cache')
-DB_DIR = os.getenv('DB_DIR', './chroma_db')
+# Application Storage
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+CACHE_DIR = os.getenv("CACHE_DIR", os.path.join(BASE_DIR, "cache"))
+DB_DIR = os.getenv("DB_DIR", os.path.join(BASE_DIR, "chroma_db"))
 
-# Create directories if they don't exist
+# Audio Processing
+DEFAULT_BITRATE = os.getenv("DEFAULT_BITRATE", "32k")
+LONG_VIDEO_BITRATE = os.getenv("LONG_VIDEO_BITRATE", "16k")
+LONG_VIDEO_THRESHOLD_MINUTES = int(os.getenv("LONG_VIDEO_THRESHOLD_MINUTES", "60"))
+
+# Performance Settings
+MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "3"))
+
+# External Tools
+FFMPEG_PATH = os.getenv("FFMPEG_PATH", "ffmpeg")
+
+# LangSmith Settings
+LANGSMITH_PROJECT_NAME = os.getenv("LANGSMITH_PROJECT_NAME", "youtube-ai-assistant")
+LANGSMITH_API_URL = os.getenv("LANGSMITH_API_URL", "https://api.smith.langchain.com")
+LANGSMITH_TRACING_ENABLED = os.getenv("LANGSMITH_TRACING_ENABLED", "false").lower() == "true"
+
+# Create required directories
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(DB_DIR, exist_ok=True)
-
-# Processing settings
-DEFAULT_BITRATE = "16k"
-LONG_VIDEO_BITRATE = "8k"
-LONG_VIDEO_THRESHOLD_MINUTES = 45  # Videos longer than this use low bitrate
-
-# Parallel processing settings
-MAX_CONCURRENT_REQUESTS = int(os.getenv('MAX_CONCURRENT_REQUESTS', '3'))
-SEGMENT_SIZE_MINUTES = int(os.getenv('SEGMENT_SIZE_MINUTES', '10'))
-
-# Model settings
-DEFAULT_QA_MODEL = "gpt-3.5-turbo-instruct"
-DEFAULT_SUMMARY_MODEL = "gpt-3.5-turbo-instruct"
-TRANSCRIPTION_MODEL = "whisper-1"

@@ -1,9 +1,10 @@
 import streamlit as st
 import textwrap
 import time
+import os
 from src.langchain_pipeline.processor import VideoProcessor
 from src.ui.progress import ProgressManager
-from src.config.settings import MAX_CONCURRENT_REQUESTS
+from src.utils.language_support import LanguageProcessor
 
 # Set page configuration
 st.set_page_config(page_title="🎬 YouTube AI Assistant", layout="centered")
@@ -12,11 +13,19 @@ st.title("🎬 YouTube AI Assistant")
 # Initialize components
 processor = VideoProcessor()
 progress_mgr = ProgressManager()
+language_processor = LanguageProcessor()
 
+# Main application form
 with st.sidebar:
     with st.form(key='my_form'):
         youtube_url = st.text_area("🎥 YouTube URL", max_chars=200)
-        query = st.text_area("❓ Ask something about the video", max_chars=200, key="query")
+        
+        # Query input
+        query = st.text_area(
+            "❓ Ask something about the video", 
+            max_chars=200,
+            key="query"
+        )
 
         # Duration options
         audio_duration = st.selectbox(
@@ -39,9 +48,29 @@ with st.sidebar:
             value=3,
             help="Higher values process faster but consume more API credits"
         )
+        
+        # Language selection
+        supported_languages = language_processor.get_supported_languages()
+        language_options = ["Auto-detect"] + [lang["name"] for lang in supported_languages]
+        selected_language = st.selectbox(
+            "🌐 Output Language",
+            options=language_options,
+            index=0,
+            help="Select language for responses (Auto-detect uses the input language)"
+        )
 
-        # Mode selection
-        mode = st.radio("🧠 Choose Mode", ["Question Answering", "Summarize Video"])
+        # Mode selection with additional options (chapters removed)
+        mode = st.radio(
+            "🧠 Choose Mode", 
+            ["Question Answering", "Summarize Video"]
+        )
+        
+        # Add options for summary length when in summarize mode
+        if mode == "Summarize Video":
+            summary_length = st.radio(
+                "📝 Summary Length",
+                ["Brief", "Moderate", "Detailed"]
+            )
         
         # Submit button
         submit_button = st.form_submit_button(label="🚀 Submit")
@@ -78,12 +107,26 @@ if submit_button and youtube_url:
             if mode == "Summarize Video":
                 with st.spinner("📝 Summarizing video content..."):
                     try:
-                        # Use default moderate summary length
+                        # Get language code if not auto-detect
+                        target_language = None
+                        if selected_language != "Auto-detect":
+                            # Find the language code based on selected name
+                            for lang in supported_languages:
+                                if lang["name"] == selected_language:
+                                    target_language = lang["code"]
+                                    break
+                        
+                        # Use user-selected summary length
                         response = processor.summarize_video(
                             db, 
                             model_name="gpt-3.5-turbo-instruct", 
-                            summary_length="Moderate"
+                            summary_length=summary_length
                         )
+                        
+                        # Translate if needed
+                        if target_language:
+                            with st.spinner(f"🌐 Translating to {selected_language}..."):
+                                response = language_processor.translate_text(response, target_language)
                         
                         # Display summary
                         st.subheader("📋 Summary:")
@@ -101,13 +144,19 @@ if submit_button and youtube_url:
                                 model_name="gpt-3.5-turbo-instruct", 
                                 summary_length="Brief"
                             )
+                            
+                            # Translate if needed
+                            if target_language:
+                                with st.spinner(f"🌐 Translating to {selected_language}..."):
+                                    response = language_processor.translate_text(response, target_language)
+                                    
                             st.subheader("📋 Summary (Reduced):")
                             st.text(textwrap.fill(response, width=85))
                             
                         except Exception as e2:
                             st.error("Unable to generate summary. The video may be too long or complex.")
                             st.info("Try using the Question Answering mode instead, which can handle longer content better.")
-                            
+                        
             else:  # Question Answering mode
                 # Validate query
                 if query.strip() == "":
@@ -116,13 +165,30 @@ if submit_button and youtube_url:
 
                 with st.spinner("💬 Thinking..."):
                     try:
+                        # Detect query language for potential translation
+                        query_lang_code, query_lang_name = language_processor.detect_language(query)
+                        
+                        # Get target language code if not auto-detect
+                        target_language = None
+                        if selected_language != "Auto-detect":
+                            # Find the language code based on selected name
+                            for lang in supported_languages:
+                                if lang["name"] == selected_language:
+                                    target_language = lang["code"]
+                                    break
+                        
                         # Use default settings
                         response, relevant_docs = processor.answer_question(
                             db, 
                             query, 
                             k=3,  # Use a moderate context size
-                            model_name="gpt-3.5-turbo-instruct" 
+                            model_name="gpt-3.5-turbo-instruct"
                         )
+                        
+                        # Translate response if needed
+                        if target_language and target_language != query_lang_code:
+                            with st.spinner(f"🌐 Translating to {selected_language}..."):
+                                response = language_processor.translate_text(response, target_language)
                         
                         # Display answer
                         st.subheader("💡 Answer:")
@@ -146,6 +212,12 @@ if submit_button and youtube_url:
                                 response, _ = processor.answer_question(
                                     db, query, k=1, model_name="gpt-3.5-turbo-instruct"
                                 )
+                                
+                                # Translate if needed
+                                if target_language and target_language != query_lang_code:
+                                    with st.spinner(f"🌐 Translating to {selected_language}..."):
+                                        response = language_processor.translate_text(response, target_language)
+                                        
                                 st.subheader("💡 Answer (Simplified):")
                                 st.text(textwrap.fill(response, width=85))
                                 
@@ -165,3 +237,4 @@ if submit_button and youtube_url:
 st.markdown("---")
 st.markdown("#### YouTube AI Assistant")
 st.markdown("This tool helps you extract information from YouTube videos through transcription and AI processing.")
+st.markdown("✨ **Features**: Multilingual support for question answering and summarization.")
