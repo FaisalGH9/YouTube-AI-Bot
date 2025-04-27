@@ -30,7 +30,7 @@ def create_vector_db_from_youtube_url(video_url: str, duration_choice="Full vide
     audio_path = download_audio_from_youtube(video_url)
     
     # Use better compression settings for OpenAI compatibility
-    compressed_audio_path = compress_audio(audio_path, bitrate="64k")
+    compressed_audio_path = compress_audio(audio_path, bitrate="8k")
     size_mb = get_file_size_mb(compressed_audio_path)
 
     if size_mb > 25:
@@ -40,7 +40,7 @@ def create_vector_db_from_youtube_url(video_url: str, duration_choice="Full vide
         from pydub import AudioSegment
         sound = AudioSegment.from_file(compressed_audio_path)
         clipped = sound[:limit_minutes * 60 * 1000]
-        clipped.export("clipped_audio.mp3", format="mp3", bitrate="64k")
+        clipped.export("clipped_audio.mp3", format="mp3", bitrate="8k")
         final_audio_path = "clipped_audio.mp3"
     else:
         final_audio_path = compressed_audio_path

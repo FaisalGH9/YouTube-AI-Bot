@@ -5,7 +5,7 @@ def get_file_size_mb(path):
     """Calculate file size in megabytes"""
     return os.path.getsize(path) / (1024 * 1024)
 
-def compress_audio(input_path, output_path="compressed_audio.mp3", bitrate="128k"):
+def compress_audio(input_path, output_path="compressed_audio.mp3", bitrate="16k"):
     """
     Enhanced audio compression with better OpenAI compatibility
     """
